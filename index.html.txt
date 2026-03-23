@@ -1,0 +1,261 @@
+!DOCTYPE html
+html lang=es
+head
+meta charset=UTF-8
+meta name=viewport content=width=device-width, initial-scale=1
+titleJuego de Saltos Animadotitle
+style
+  body { margin0; background#87CEEB; font-familyArial, sans-serif; text-aligncenter; }
+  h1 { margin-top15px; color#fff; text-shadow2px 2px 2px #333;}
+  #game { displayblock; margin10px auto; border2px solid #333; touch-action manipulation; background #87CEEB; }
+  #score { font-size20px; color#fff; margin5px;}
+  #menu, #controls { margin-top10px; }
+  button { font-size16px; margin0 10px; padding6px 16px; border-radius6px; bordernone; cursorpointer; }
+style
+head
+body
+h1Juego de Saltos Animadoh1
+canvas id=game width=640 height=320canvas
+div id=scorePuntaje 0div
+
+div id=menu
+  divElegí personajediv
+  button onclick=selectCharacter('boy')Nenebutton
+  button onclick=selectCharacter('girl')Nenabutton
+div
+
+div id=controls style=displaynone;
+  button id=btnPausePausarbutton
+  button id=btnRestartReiniciarbutton
+div
+
+audio id=bgMusic loop
+  source src=httpscdn.pixabay.comdownloadaudio20220304audio_7d17c03e2b.mp3filename=relaxing-background-music-12424.mp3 type=audiompeg
+audio
+
+script
+const canvas = document.getElementById(game);
+const ctx = canvas.getContext(2d);
+const bgMusic = document.getElementById(bgMusic);
+
+let characterType = null;
+let gameStarted = false;
+let gameOver = false;
+let paused = false;
+let score = 0;
+let speed = 3.2;
+
+const btnPause = document.getElementById(btnPause);
+const btnRestart = document.getElementById(btnRestart);
+const controlsDiv = document.getElementById(controls);
+const menuDiv = document.getElementById(menu);
+
+let jumpPressed = false;
+let jumpCount = 0;
+const maxJumps = 2;
+
+let superPower = false;
+let superPowerTimer = 0;
+
+let player = {x80, y200, width30, height40, velocityY0, gravity0.6, jumpPower-12, onGroundfalse, onPlatformfalse, runFrame0};
+let obstacles = [], particles = [], floatingLetters = [];
+let obstacleCount = 0;
+
+ Dibujar fondo con árboles
+function drawBackground() {
+  ctx.fillStyle=#87CEEB;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+   Césped
+  ctx.fillStyle=#228B22;
+  ctx.fillRect(0,280,canvas.width,40);
+   Árboles simples
+  for(let i=0;i5;i++){
+    let tx = (i150 + 50 - (score%canvas.width))%canvas.width;
+    ctx.fillStyle=#8B4513; ctx.fillRect(tx,240,15,40);
+    ctx.fillStyle=#006400; ctx.beginPath();
+    ctx.moveTo(tx-15,240); ctx.lineTo(tx+7,200); ctx.lineTo(tx+29,240); ctx.closePath(); ctx.fill();
+  }
+}
+
+ Dibujar jugador
+function drawCharacter(x, y, type){
+  ctx.fillStyle=#ffe0bd;
+  ctx.beginPath(); ctx.arc(x+15, y-10,12,0,Math.PI2); ctx.fill();
+  ctx.fillStyle=black; ctx.beginPath();
+  ctx.arc(x+8, y-12,3,0,Math.PI2); ctx.arc(x+22,y-12,3,0,Math.PI2); ctx.fill();
+  ctx.strokeStyle=black; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(x+15,y-5,8,0,Math.PI); ctx.stroke();
+  if(type===girl){ ctx.fillStyle=#ffcc00; ctx.beginPath(); ctx.moveTo(x+15,y-22); ctx.lineTo(x+5,y-2); ctx.lineTo(x+25,y-2); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle=type===boy#3498db#e91e63;
+  ctx.fillRect(x,y,30,40);
+  let frame = Math.sin(player.runFrame)5;
+  ctx.strokeStyle=#000; ctx.lineWidth=3;
+   Brazos
+  ctx.beginPath();
+  ctx.moveTo(x+5,y+10); ctx.lineTo(x-5,y+20+frame);
+  ctx.moveTo(x+25,y+10); ctx.lineTo(x+35,y+20-frame);
+  ctx.stroke();
+   Piernas
+  ctx.beginPath();
+  ctx.moveTo(x+10,y+40); ctx.lineTo(x+5,y+50-frame);
+  ctx.moveTo(x+20,y+40); ctx.lineTo(x+25,y+50+frame);
+  ctx.stroke();
+}
+
+ Crear obstáculos
+function createObstacle(){
+  if(!gameOver && gameStarted && !paused){
+    obstacleCount++;
+    if(obstacleCount%7===0){
+      obstacles.push({xcanvas.width,y260,width20,height20,typestep});
+      obstacles.push({xcanvas.width+20,y220,width20,height40,typestep});
+      obstacles.push({xcanvas.width+90,y220,width20,height40,typenormal});
+    } else if(obstacleCount%5===0){
+      obstacles.push({xcanvas.width,y180,width60,height20,typeplatform});
+      obstacles.push({xcanvas.width+90,y220,width20,height40,typenormal});
+    } else{
+      const shapes=[square,circle,triangle];
+      obstacles.push({xcanvas.width,y220,width20,height40,typeshapes[Math.floor(Math.random()shapes.length)]});
+    }
+  }
+}
+setInterval(createObstacle,2000);
+
+ Letra L superpoder
+function createLetter(){
+  if(!gameOver && gameStarted && !paused){
+    floatingLetters.push({xcanvas.width+50,yMath.random()150+50,width20,height20,charL,phase0});
+  }
+}
+setInterval(createLetter,7000);
+
+function createParticles(x,y){
+  for(let i=0;i25;i++){
+    particles.push({x,y,sizeMath.random()5+2,speedX(Math.random()-0.5)5,speedY(Math.random()-0.5)5,alpha1});
+  }
+}
+function updateParticles(){
+  for(let i=particles.length-1;i=0;i--){
+    let p=particles[i];
+    p.x+=p.speedX; p.y+=p.speedY; p.alpha-=0.03; if(p.alpha=0) particles.splice(i,1);
+  }
+}
+function drawParticles(){ particles.forEach(p={ ctx.fillStyle=`rgba(255,255,255,${p.alpha})`; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI2); ctx.fill(); }); }
+
+ Salto
+function startJump(){ jumpPressed=true; if(jumpCountmaxJumps){ player.velocityY=player.jumpPower; jumpCount++; player.onGround=false; player.onPlatform=false; } }
+function stopJump(){ jumpPressed=false; }
+document.addEventListener(keydown,e={ if(e.code===Space) if(!jumpPressed) startJump(); });
+document.addEventListener(keyup,e={ if(e.code===Space){ stopJump(); jumpCount=0; }});
+canvas.addEventListener(touchstart,e={ e.preventDefault(); if(!jumpPressed) startJump(); });
+canvas.addEventListener(touchend,e={ e.preventDefault(); stopJump(); jumpCount=0; });
+
+ Elegir personaje
+function selectCharacter(type){ characterType=type; gameStarted=true; gameOver=false; paused=false; menuDiv.style.display=none; controlsDiv.style.display=block; resetGame(); bgMusic.play().catch(()={}); }
+
+ Botones
+btnPause.addEventListener(click,()={ if(!gameStarted) return; paused=!paused; btnPause.textContent=pausedContinuarPausar; if(paused) bgMusic.pause(); else bgMusic.play().catch(()={}); });
+btnRestart.addEventListener(click,()={ if(!gameStarted) return; resetGame(); });
+
+ Reset
+function resetGame(){ player.y=200; player.velocityY=0; player.runFrame=0; obstacles=[]; particles=[]; floatingLetters=[]; score=0; speed=3.2; gameOver=false; jumpCount=0; superPower=false; superPowerTimer=0; btnPause.textContent=Pausar; bgMusic.play().catch(()={}); }
+
+ Actualizar jugador
+function updatePlayer(){
+  player.velocityY+=player.gravity;
+  player.y+=player.velocityY;
+  player.onGround=false; player.onPlatform=false;
+  if(player.y200){ player.y=200; player.velocityY=0; player.onGround=true; jumpCount=0; }
+
+   Plataforma o escalera
+  for(let obs of obstacles){
+    if((obs.type===platformobs.type===step) && player.x+player.widthobs.x && player.xobs.x+obs.width){
+      let playerFeet = player.y+player.height;
+      let platformTop = obs.y;
+      if(playerFeet=platformTop-5 && playerFeet=platformTop+10 && player.velocityY=0){
+        player.y=platformTop-player.height;
+        player.velocityY=0;
+        player.onPlatform=true;
+        jumpCount=0;
+      }
+    }
+  }
+
+  if(superPower){ superPowerTimer-=160; if(superPowerTimer=0) superPower=false; }
+  player.runFrame+=0.2;
+}
+
+ Actualizar obstáculos y letras
+function updateObstacles(){
+  for(let i=obstacles.length-1;i=0;i--){ obstacles[i].x-=speed; if(obstacles[i].x+obstacles[i].width0) obstacles.splice(i,1);}
+  for(let i=floatingLetters.length-1;i=0;i--){ floatingLetters[i].x-=speed; floatingLetters[i].phase+=0.1; }
+}
+
+ Colisiones solo frente a obstáculos
+function checkCollision(){
+  for(let obs of obstacles){
+    if(obs.type!==platform && obs.type!==step){
+      if(player.xobs.x+obs.width && player.x+player.widthobs.x &&
+         player.yobs.y+obs.height && player.y+player.heightobs.y){
+        if(!superPower){ gameOver=true; createParticles(player.x+player.width2, player.y+player.height2); bgMusic.pause();}
+      }
+    }
+  }
+  for(let i=floatingLetters.length-1;i=0;i--){
+    let l=floatingLetters[i];
+    l.y += Math.sin(l.phase)0.5;
+    if(player.xl.x+l.width && player.x+player.widthl.x && player.yl.y+l.height && player.y+player.heightl.y){
+      superPower=true;
+      superPowerTimer=3;
+      floatingLetters.splice(i,1);
+    }
+  }
+}
+
+ Dibujar todo
+function drawObstacles(){
+  obstacles.forEach(obs={
+    let glow = Math.sin(Date.now()200)0.5+0.5;
+    switch(obs.type){
+      case square ctx.fillStyle=`rgba(255,0,0,${0.8+0.2glow})`; ctx.fillRect(obs.x,obs.y,obs.width,obs.height); break;
+      case circle ctx.fillStyle=`rgba(0,255,0,${0.8+0.2glow})`; ctx.beginPath(); ctx.arc(obs.x+obs.width2,obs.y+obs.height2,obs.width2,0,Math.PI2); ctx.fill(); break;
+      case triangle ctx.fillStyle=`rgba(255,165,0,${0.8+0.2glow})`; ctx.beginPath(); ctx.moveTo(obs.x,obs.y+obs.height); ctx.lineTo(obs.x+obs.width2,obs.y); ctx.lineTo(obs.x+obs.width,obs.y+obs.height); ctx.closePath(); ctx.fill(); break;
+      case platform ctx.fillStyle=`rgba(85,85,255,${0.8+0.2glow})`; ctx.fillRect(obs.x,obs.y,obs.width,obs.height); break;
+      case step ctx.fillStyle=`rgba(153,153,255,${0.8+0.2glow})`; ctx.fillRect(obs.x,obs.y,obs.width,obs.height); break;
+    }
+  });
+  floatingLetters.forEach(l={
+    ctx.fillStyle=yellow; ctx.font=20px Arial; ctx.fillText(l.char,l.x,l.y+15);
+    if(superPower){
+      ctx.strokeStyle=`rgba(255,255,0,${Math.sin(Date.now()100)0.5+0.5})`;
+      ctx.lineWidth=4;
+      ctx.beginPath();
+      ctx.arc(player.x+player.width2,player.y+player.height2,40,0,Math.PI2);
+      ctx.stroke();
+    }
+  });
+}
+
+ Game over
+function drawGameOver(){ ctx.fillStyle=white; ctx.font=30px Arial; ctx.fillText(GAME OVER,280,120); ctx.font=20px Arial; ctx.fillText(Puntaje +score,320,160); ctx.font=16px Arial; ctx.fillText(Toca o presiona espacio para reiniciar,180,200); }
+
+ Loop principal
+function gameLoop(){
+  drawBackground();
+  if(gameStarted){
+    if(!gameOver && !paused){
+      updatePlayer(); updateObstacles(); checkCollision();
+      score++; document.getElementById(score).innerText=score;
+      if(score%300===0) speed+=0.3;
+    }
+    drawCharacter(player.x,player.y,characterType);
+    drawObstacles();
+    updateParticles(); drawParticles();
+    if(gameOver) drawGameOver();
+  }
+  requestAnimationFrame(gameLoop);
+}
+gameLoop();
+script
+body
+html
