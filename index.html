@@ -61,14 +61,12 @@ let player = {x:80, y:200, width:30, height:40, velocityY:0, gravity:0.6, jumpPo
 let obstacles = [], particles = [], floatingLetters = [];
 let obstacleCount = 0;
 
-// Dibujar fondo con árboles
+// Dibujar fondo
 function drawBackground() {
   ctx.fillStyle="#87CEEB";
   ctx.fillRect(0,0,canvas.width,canvas.height);
-  // Césped
   ctx.fillStyle="#228B22";
   ctx.fillRect(0,280,canvas.width,40);
-  // Árboles
   for(let i=0;i<5;i++){
     let tx = (i*150 + 50 - (score%canvas.width))%canvas.width;
     ctx.fillStyle="#8B4513"; ctx.fillRect(tx,240,15,40);
@@ -79,28 +77,21 @@ function drawBackground() {
 
 // Dibujar jugador
 function drawCharacter(x, y, type){
-  // Cabeza
   ctx.fillStyle="#ffe0bd"; ctx.beginPath(); ctx.arc(x+15, y-10,12,0,Math.PI*2); ctx.fill();
-  // Ojos
   ctx.fillStyle="black"; ctx.beginPath();
   ctx.arc(x+8, y-12,3,0,Math.PI*2);
   ctx.arc(x+22, y-12,3,0,Math.PI*2); ctx.fill();
-  // Boca
   ctx.strokeStyle="black"; ctx.lineWidth=2; ctx.beginPath();
   ctx.arc(x+15,y-5,8,0,Math.PI); ctx.stroke();
-  // Pelo nena
   if(type==="girl"){ ctx.fillStyle="#ffcc00"; ctx.beginPath(); ctx.moveTo(x+15,y-22); ctx.lineTo(x+5,y-2); ctx.lineTo(x+25,y-2); ctx.closePath(); ctx.fill(); }
-  // Cuerpo
   ctx.fillStyle=type==="boy"?"#3498db":"#e91e63";
   ctx.fillRect(x,y,30,40);
   let frame = Math.sin(player.runFrame)*5;
   ctx.strokeStyle="#000"; ctx.lineWidth=3;
-  // Brazos
   ctx.beginPath();
   ctx.moveTo(x+5,y+10); ctx.lineTo(x-5,y+20+frame);
   ctx.moveTo(x+25,y+10); ctx.lineTo(x+35,y+20-frame);
   ctx.stroke();
-  // Piernas
   ctx.beginPath();
   ctx.moveTo(x+10,y+40); ctx.lineTo(x+5,y+50-frame);
   ctx.moveTo(x+20,y+40); ctx.lineTo(x+25,y+50+frame);
@@ -172,11 +163,13 @@ function updatePlayer(){
   player.onGround=false; player.onPlatform=false;
   if(player.y>200){ player.y=200; player.velocityY=0; player.onGround=true; jumpCount=0; }
 
+  // Plataformas y escalones: solo se “agarra” al caer sobre ellas
   for(let obs of obstacles){
-    if((obs.type==="platform"||obs.type==="step") && player.x+player.width>obs.x && player.x<obs.x+obs.width){
+    if(obs.type==="platform"||obs.type==="step"){
       let playerFeet = player.y+player.height;
       let platformTop = obs.y;
-      if(playerFeet>=platformTop-5 && playerFeet<=platformTop+10 && player.velocityY>=0){
+      if(player.velocityY>=0 && player.x+player.width>obs.x && player.x<obs.x+obs.width &&
+         playerFeet>=platformTop-5 && playerFeet<=platformTop+10){
         player.y=platformTop-player.height;
         player.velocityY=0;
         player.onPlatform=true;
