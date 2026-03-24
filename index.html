@@ -18,12 +18,14 @@ button { font-size:16px; margin:0 10px; padding:6px 16px; border-radius:6px; bor
 <canvas id="game" width="640" height="320"></canvas>
 <div id="score">Puntaje: 0</div>
 
+<!-- Menú de selección de personaje -->
 <div id="menu">
   <div>Elegí personaje:</div>
   <button onclick="selectCharacter('boy')">Nene</button>
   <button onclick="selectCharacter('girl')">Nena</button>
 </div>
 
+<!-- Controles de juego -->
 <div id="controls" style="display:none;">
   <button id="btnPause">Pausar</button>
   <button id="btnRestart">Reiniciar</button>
@@ -147,13 +149,36 @@ canvas.addEventListener("touchstart",e=>{ e.preventDefault(); if(!jumpPressed) s
 canvas.addEventListener("touchend",e=>{ e.preventDefault(); stopJump(); jumpCount=0; });
 
 // Elegir personaje
-function selectCharacter(type){ characterType=type; gameStarted=true; gameOver=false; paused=false; menuDiv.style.display="none"; controlsDiv.style.display="block"; resetGame(); bgMusic.play().catch(()=>{}); }
+function selectCharacter(type){
+  characterType=type;
+  gameStarted=true;
+  gameOver=false;
+  paused=false;
+  menuDiv.style.display="none";
+  controlsDiv.style.display="block";
+  resetGame();
+  bgMusic.play().catch(()=>{});
+}
 
 // Botones
 btnPause.addEventListener("click",()=>{ if(!gameStarted) return; paused=!paused; btnPause.textContent=paused?"Continuar":"Pausar"; if(paused) bgMusic.pause(); else bgMusic.play().catch(()=>{}); });
-btnRestart.addEventListener("click",()=>{ if(!gameStarted) return; resetGame(); });
+btnRestart.addEventListener("click",()=>{
+  // Al reiniciar, volvemos al menú
+  gameStarted=false;
+  gameOver=false;
+  menuDiv.style.display="block";
+  controlsDiv.style.display="none";
+  obstacles=[];
+  floatingLetters=[];
+  particles=[];
+  score=0;
+  speed=3.2;
+  characterType=null;
+  bgMusic.currentTime=0;
+  bgMusic.pause();
+});
 
-// Reset
+// Reset general
 function resetGame(){ player.y=200; player.velocityY=0; player.runFrame=0; obstacles=[]; particles=[]; floatingLetters=[]; score=0; speed=3.2; gameOver=false; jumpCount=0; superPower=false; superPowerTimer=0; btnPause.textContent="Pausar"; bgMusic.play().catch(()=>{}); }
 
 // Actualizar jugador
@@ -163,7 +188,7 @@ function updatePlayer(){
   player.onGround=false; player.onPlatform=false;
   if(player.y>200){ player.y=200; player.velocityY=0; player.onGround=true; jumpCount=0; }
 
-  // Plataformas y escalones: solo se “agarra” al caer sobre ellas
+  // Plataformas y escalones
   for(let obs of obstacles){
     if(obs.type==="platform"||obs.type==="step"){
       let playerFeet = player.y+player.height;
@@ -188,7 +213,7 @@ function updateObstacles(){
   for(let i=floatingLetters.length-1;i>=0;i--){ floatingLetters[i].x-=speed; floatingLetters[i].phase+=0.1; }
 }
 
-// Colisiones solo frente a obstáculos
+// Colisiones frente a obstáculos
 function checkCollision(){
   for(let obs of obstacles){
     if(obs.type!=="platform" && obs.type!=="step"){
@@ -203,9 +228,7 @@ function checkCollision(){
     l.y += Math.sin(l.phase)*0.5;
     if(player.x<l.x+l.width && player.x+player.width>l.x &&
        player.y<l.y+l.height && player.y+player.height>l.y){
-      superPower=true;
-      superPowerTimer=3;
-      floatingLetters.splice(i,1);
+      superPower=true; superPowerTimer=3; floatingLetters.splice(i,1);
     }
   }
 }
